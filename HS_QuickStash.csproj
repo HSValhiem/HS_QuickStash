@@ -1,0 +1,305 @@
+﻿<!-- STUB VERSION 0.0.3-->
+<Project Sdk="Microsoft.NET.Sdk">
+	<!-- Static Config -->
+	<PropertyGroup>
+		<TargetFrameworks>net472</TargetFrameworks>
+		<LangVersion>preview</LangVersion>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<Authors>HS</Authors>
+	</PropertyGroup>
+
+	<!-- Per Plugin Config -->
+	<PropertyGroup>
+		<!-- Define BepInEx Plugin GUID -->
+		<AssemblyName>$(MSBuildProjectName)</AssemblyName>
+		<!-- Define BepInEx Plugin Name -->
+		<Product>$(MSBuildProjectName)</Product>
+		<!-- Define BepInEx Plugin Version -->
+		<Version>0.0.1</Version>
+		<!-- Define Plugin Folder Name with Leading and Trailing \ I.E \$(Authors).$(Product)\, Leave Blank to put Plugin in Root of Plugins Folder-->
+		<PluginFolderName></PluginFolderName>
+		<!-- Define Valheim Location, References and Plugins Directory Paths -->
+		<ValheimDevPath>D:\ValheimDev</ValheimDevPath>
+		<ValheimReferencesPath>$(ValheimDevPath)\Libs</ValheimReferencesPath>
+		<ValheimBepInExPluginsPath>$(ValheimDevPath)\Valheim\BepInEx\Plugins</ValheimBepInExPluginsPath>
+		<ValheimEXEPath>$(ValheimDevPath)\Valheim\valheim.exe</ValheimEXEPath>
+		<!-- Set True to Start Valheim After Build -->
+		<LaunchValheim>True</LaunchValheim>
+		<LaunchValheimRelease>False</LaunchValheimRelease>
+		<!-- Set Launch Args -->
+		<LaunchValheimArgs>-console -force-gfx-jobs native</LaunchValheimArgs>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Remove="assets\**" />
+		<Compile Remove="ThunderStore\**" />
+		<Compile Remove="translations\**" />
+		<EmbeddedResource Remove="assets\**" />
+		<EmbeddedResource Remove="ThunderStore\**" />
+		<EmbeddedResource Remove="translations\**" />
+		<None Remove="assets\**" />
+		<None Remove="ThunderStore\**" />
+		<None Remove="translations\**" />
+		<None Remove="README.md" />
+	</ItemGroup>
+
+	<!-- Nuget Config -->
+	<ItemGroup>
+		<PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="BepInEx.BaseLib" Version="5.4.21" />
+		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" />
+		<PackageReference Include="HarmonyX" Version="2.12.0" />
+		<PackageReference Include="MonoMod.Backports" Version="1.1.0" />
+		<PackageReference Include="MSBuildTasks" Version="1.5.0.235">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.2" />
+	</ItemGroup>
+
+	<!-- Valheim References -->
+	<ItemGroup>
+		<Reference Include="assembly_utils">
+		  <HintPath>$(ValheimReferencesPath)\Valheim\assembly_utils.dll</HintPath>
+		</Reference>
+		<Reference Include="assembly_valheim" Publicize="true">
+			<HintPath>$(ValheimReferencesPath)\Valheim\assembly_valheim.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<!-- Unity References -->
+	<ItemGroup>
+		<Reference Include="UnityEngine">
+			<HintPath>$(ValheimReferencesPath)\unstripped_corlib\UnityEngine.dll</HintPath>
+		</Reference>
+		<Reference Include="UnityEngine.CoreModule">
+			<HintPath>$(ValheimReferencesPath)\unstripped_corlib\UnityEngine.CoreModule.dll</HintPath>
+		</Reference>
+		<Reference Include="UnityEngine.IMGUIModule">
+			<HintPath>$(ValheimReferencesPath)\unstripped_corlib\UnityEngine.IMGUIModule.dll</HintPath>
+		</Reference>
+		<Reference Include="UnityEngine.InputLegacyModule">
+		  <HintPath>$(ValheimReferencesPath)\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+		</Reference>
+		<Reference Include="UnityEngine.TextRenderingModule">
+			<HintPath>$(ValheimReferencesPath)\unstripped_corlib\UnityEngine.TextRenderingModule.dll</HintPath>
+		</Reference>
+		<Reference Include="UnityEngine.UnityWebRequestModule">
+			<HintPath>$(ValheimReferencesPath)\unstripped_corlib\UnityEngine.UnityWebRequestModule.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<!-- Library References -->
+	<ItemGroup>
+		<Reference Include="ServerSync">
+			<HintPath>$(ValheimReferencesPath)\Blaxxun\ServerSync.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<!-- Search the manifest_extended file for the manifest name that contains the changelog asset and return it -->
+	<UsingTask TaskName="FindTargetManifest" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+		<ParameterGroup>
+			<FilePath ParameterType="System.String" Required="true" />
+			<TargetLine ParameterType="System.String" Required="true" />
+			<OutputLineAbove ParameterType="System.String" Output="true" />
+		</ParameterGroup>
+		<Task>
+			<Using Namespace="System.IO" />
+			<Code Type="Fragment" Language="cs">
+				<![CDATA[
+					var lines = File.ReadLines(FilePath);
+					var lineAbove = lines.TakeWhile(line => line.Trim() != TargetLine).LastOrDefault();
+
+					if (lineAbove != null)
+					{
+						string[] parts = lineAbove.Split(':');
+						OutputLineAbove = parts.Length > 1 ? parts[1].Trim() : null;
+					}
+				]]>
+			</Code>
+		</Task>
+	</UsingTask>
+
+	<!-- Search the manifest file for the next Non-Empty line after "# Xbox Game Preview" line and return the Version -->
+	<UsingTask TaskName="FindValheimVersion" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+		<ParameterGroup>
+			<FilePath ParameterType="System.String" Required="true" />
+			<LineToSearch ParameterType="System.String" Required="true" />
+			<ValheimVersion ParameterType="System.String" Output="true" />
+		</ParameterGroup>
+		<Task>
+			<Using Namespace="System.IO" />
+			<Code Type="Fragment" Language="cs">
+				<![CDATA[
+					bool lineFound = false;
+					var lines = File.ReadLines(FilePath);
+					foreach (var line in lines)
+					{
+						if (line.Trim() == LineToSearch)
+						{
+							var nextLine = lines.SkipWhile(l => l.Trim().Length == 0).FirstOrDefault();
+        
+							if (nextLine != null)
+							{
+								string[] parts = nextLine.Split(' ');
+								ValheimVersion = parts.Length > 1 ? parts[1].Trim() : null;
+								lineFound = true;
+							}
+							break;
+						}
+					}
+					if (!lineFound)
+					{
+						Log.LogError("Unable to Get Valheim Version!!! Error: Line '" + LineToSearch + "' not found in the file.");
+						return false;
+					}
+					else if(string.IsNullOrEmpty(ValheimVersion))
+					{
+						Log.LogError("Unable to Get Valheim Version!!! Error: No non-empty line found after '" + LineToSearch + "'.");
+						return false;
+					}
+					return true;
+            ]]>
+			</Code>
+		</Task>
+	</UsingTask>
+
+	<!--Update Version in VersionChecker.cs-->
+	<UsingTask TaskName="UpdateVersionInFileTask" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+		<ParameterGroup>
+			<FilePath ParameterType="System.String" Required="true" />
+			<NewVersion ParameterType="System.String" Required="true" />
+		</ParameterGroup>
+		<Task>
+			<Reference Include="System.IO" />
+			<Reference Include="System.Text.RegularExpressions" />
+			<Using Namespace="System" />
+			<Using Namespace="System.IO" />
+			<Using Namespace="System.Text.RegularExpressions" />
+			<Code Type="Fragment" Language="cs">
+				<![CDATA[
+				string pattern = @"private const string ValheimVersions = ""([^""]+).*?"";";
+				string[] lines = File.ReadAllLines(FilePath);
+
+				bool versionFound = false;
+				File.WriteAllLines(FilePath,
+				    lines.Select((line, index) =>
+				    {
+				        if (!versionFound && Regex.Match(line, pattern).Success)
+				        {
+				            versionFound = true;
+				            string[] versions = Regex.Match(line, pattern).Groups[1].Value.Split(',');
+				            if (!versions.Contains(NewVersion))
+				                return line.Replace(Regex.Match(line, pattern).Groups[1].Value, Regex.Match(line, pattern).Groups[1].Value + "," + NewVersion);
+				        }
+				        return line;
+				    }));
+                ]]>
+			</Code>
+		</Task>
+	</UsingTask>
+
+	<!--Launch a Process in Parallel-->
+	<UsingTask TaskName="ExecAsync" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+		<ParameterGroup>
+			<!--The file path is the full path to the executable file to run-->
+			<FilePath ParameterType="System.String" Required="true" />
+			<!--The arguments should contain all the command line arguments that need to be sent to the application-->
+			<Arguments ParameterType="System.String" Required="true" />
+		</ParameterGroup>
+		<Task>
+			<Code Type="Fragment" Language="cs">
+				<![CDATA[
+				string name = System.IO.Path.GetFileNameWithoutExtension(FilePath);
+				Log.LogMessage("Starting {0}...", name);        
+				System.Diagnostics.ProcessStartInfo processStartInfo = new System.Diagnostics.ProcessStartInfo(FilePath, Arguments);
+				processStartInfo.UseShellExecute = true;
+				System.Diagnostics.Process.Start(processStartInfo);
+				Log.LogMessage("Finished running process {0}.", name);
+				]]>
+			</Code>
+		</Task>
+	</UsingTask>
+
+	<!-- Get and Update Valheim Version for the VersionChecker -->
+	<Target Name="UpdateVersion" BeforeTargets="BeforeBuild">
+		<!-- Get Manifest Name that Contains the Changelog Asset -->
+		<FindTargetManifest FilePath="$(ValheimDevPath)\valheim\valheim_Data\StreamingAssets\SoftReferenceableAssets\manifest_extended" TargetLine="path in bundle: Assets/UI/changelog.txt">
+			<Output TaskParameter="OutputLineAbove" PropertyName="TargetManifest" />
+		</FindTargetManifest>
+
+		<!-- Get version string from Changelog in Manifest -->
+		<FindValheimVersion FilePath="$(ValheimDevPath)\valheim\valheim_Data\StreamingAssets\SoftReferenceableAssets\Bundles\$(TargetManifest)" LineToSearch="# Xbox Game Preview">
+			<Output TaskParameter="ValheimVersion" PropertyName="ValheimVersionResult" />
+		</FindValheimVersion>
+		<Message Text="Detected Valheim Version: $(ValheimVersionResult)" Importance="High" />
+
+		<!-- Update VersionChecker.cs with the Detected Version -->
+		<UpdateVersionInFileTask FilePath="$(MSBuildProjectDirectory)\VersionChecker.cs" NewVersion="$(ValheimVersionResult)" />
+	</Target>
+
+	<!-- Deploy Mod to BepinEx Plugins Directory -->
+	<Target Name="DeployMod" AfterTargets="ILRepacker">
+		<!-- Copy the target path to the EFTBepInExPluginsPath directory -->
+		<Exec Command="xcopy &quot;$(TargetPath)&quot; &quot;$(ValheimBepInExPluginsPath)$(PluginFolderName)&quot; /Y /I" />
+
+		<!-- Copy the .pdb file to the EFTBepInExPluginsPath directory if the configuration is not 'Release' -->
+		<Exec Condition="'$(Configuration)' != 'Release'" Command="xcopy &quot;$(TargetDir)$(TargetName).pdb&quot; &quot;$(ValheimBepInExPluginsPath)$(PluginFolderName)&quot; /Y /I" />
+
+		<!-- Delete the existing .pdb file if the configuration is 'Release' -->
+		<Exec Condition="'$(Configuration)' == 'Release'" Command="del &quot;$(ValheimBepInExPluginsPath)$(PluginFolderName)\$(TargetName).pdb&quot;" />
+	</Target>
+
+	<Target Name="PublishMod" AfterTargets="DeployMod" Condition="'$(Configuration)' == 'Release'">
+
+		<PropertyGroup>
+			<ChangelogFilePath>$(SolutionDir)ThunderStore\CHANGELOG.md</ChangelogFilePath>
+			<ReadmeFilePath>$(SolutionDir)ThunderStore\README.md</ReadmeFilePath>
+			<ManifestFilePath>$(SolutionDir)ThunderStore\manifest.json</ManifestFilePath>
+			<ThunderStoreTarget>$(SolutionDir)ThunderStore\$(Product)-$(Version)</ThunderStoreTarget>
+		</PropertyGroup>
+
+		<!-- Update manifest.json with the Current Mod Version -->
+		<ItemGroup>
+			<VersionReplacmentPattern Include="&quot;version_number&quot;: &quot;(.*?)&quot;;" />
+		</ItemGroup>
+		<FileUpdate Files="$(ManifestFilePath)" Regex="@(VersionReplacmentPattern)" ReplacementText="&quot;version_number&quot;: &quot;$(Version)&quot;" />
+
+		<!-- Copy Mod into ThunderStore folder with Plugin Name and Version-->
+		<Exec Command="mkdir &quot;$(ThunderStoreTarget)\plugins&quot;" ContinueOnError="true" />
+		<Exec Command="xcopy &quot;$(TargetPath)&quot; &quot;$(ThunderStoreTarget)\plugins&quot; /Y /I" />
+
+		<!-- Open CHANGELOG.md in the text editor -->
+		<Exec Command="notepad.exe &quot;$(ChangelogFilePath)&quot;" />
+
+		<!-- Open README.md in the text editor -->
+		<Exec Command="notepad.exe &quot;$(ReadmeFilePath)&quot;" />
+
+		<!-- Copy Mod Thunderstore Files into ThunderStore folder with Plugin Name and Version-->
+		<Exec Command="xcopy &quot;$(ManifestFilePath)&quot; &quot;$(ThunderStoreTarget)&quot; /Y /I" />
+		<Exec Command="xcopy &quot;$(ChangelogFilePath)&quot; &quot;$(ThunderStoreTarget)&quot; /Y /I" />
+		<Exec Command="xcopy &quot;$(ReadmeFilePath)&quot; &quot;$(ThunderStoreTarget)&quot; /Y /I" />
+		<Exec Command="xcopy &quot;$(SolutionDir)ThunderStore\icon.png&quot; &quot;$(ThunderStoreTarget)&quot; /Y /I" />
+
+		<!-- Zip Mod -->
+		<Exec Command="del $(SolutionDir)ThunderStore\*.zip" ContinueOnError="true" />
+		<Exec Command="Tar -a -cf &quot;$(ThunderStoreTarget).zip&quot; -C &quot;$(ThunderStoreTarget)&quot; *.*" />
+		<RemoveDir Directories="$(ThunderStoreTarget)" />
+
+		<!-- Archive Mod -->
+		<Exec Command="mkdir &quot;$(SolutionDir)ThunderStore\Archived&quot;" ContinueOnError="true" />
+		<Exec Command="xcopy &quot;$(ThunderStoreTarget).zip&quot; &quot;$(SolutionDir)ThunderStore\Archived&quot; /Y /I" />
+
+		<!-- Start Valheim -->
+		<ExecAsync FilePath="$(ValheimEXEPath)" Arguments="$(LaunchValheimArgs)" ContinueOnError="true" Condition="'$(LaunchValheimRelease)' == 'True'" />
+	</Target>
+
+	<!-- Start Valheim -->
+	<Target Name="LaunchExecutable" AfterTargets="DeployMod" Condition="'$(LaunchValheim)' == 'True' and '$(Configuration)' != 'Release'">
+		<ExecAsync FilePath="$(ValheimEXEPath)" Arguments="$(LaunchValheimArgs)" ContinueOnError="true" />
+	</Target>
+</Project>
