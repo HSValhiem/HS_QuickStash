@@ -16,7 +16,7 @@
 		<!-- Define BepInEx Plugin Name -->
 		<Product>$(MSBuildProjectName)</Product>
 		<!-- Define BepInEx Plugin Version -->
-		<Version>0.0.1</Version>
+		<Version>0.0.2</Version>
 		<!-- Define Plugin Folder Name with Leading and Trailing \ I.E \$(Authors).$(Product)\, Leave Blank to put Plugin in Root of Plugins Folder-->
 		<PluginFolderName></PluginFolderName>
 		<!-- Define Valheim Location, References and Plugins Directory Paths -->
@@ -63,6 +63,9 @@
 
 	<!-- Valheim References -->
 	<ItemGroup>
+		<Reference Include="assembly_guiutils">
+		  <HintPath>$(ValheimReferencesPath)\Valheim\assembly_guiutils.dll</HintPath>
+		</Reference>
 		<Reference Include="assembly_utils">
 		  <HintPath>$(ValheimReferencesPath)\Valheim\assembly_utils.dll</HintPath>
 		</Reference>
